@@ -45,20 +45,10 @@ TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim11;
 
 /* USER CODE BEGIN PV */
-enum {
-	IDLE,
-	DB,
-	K,
-	TAU,
-}state;
-int vel = 0;
-int i=0;
-int DB_Vel = 0;
-int v = 0;
-int k=0;
-int w1, w2 = 0;
-int tau, v63;
-int s=0;
+int i=0, v=0;
+int i_current = 0;
+float angle =0 , velocity = 0;
+uint8_t direction =0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,6 +64,17 @@ static void MX_TIM7_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+float getVelocity(void){
+	return abs(v) * 200.0*60.0 /1024.0;
+}
+
+float getAngle(void){
+	return i_current%1024 * 360.0 /1024.0;
+}
+
+uint8_t getDir(void){
+	return i>0 ? 1:0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -83,6 +84,7 @@ static void MX_TIM7_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+
 
   /* USER CODE END 1 */
 
@@ -121,6 +123,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  angle = getAngle();
+	  velocity = getVelocity();
+	  direction = getDir();
+	  HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -192,9 +198,9 @@ static void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 0;
+  htim6.Init.Prescaler = 41;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 15999;
+  htim6.Init.Period = 9999;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -363,73 +369,24 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	if(GPIO_Pin == GPIO_PIN_4) {
-		if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_5)== GPIO_PIN_SET){
-			i++;
-		}
-		else {
+	if(GPIO_Pin == A_Pin) {
+		if(HAL_GPIO_ReadPin(B_GPIO_Port, B_Pin))
 			i--;
-		}
-	} else if (GPIO_Pin == GPIO_PIN_2){
-		state = DB;
+		else
+			i++;
+	} else if (GPIO_Pin == Z_Pin){
+		i_current = 0;
 	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM6){
-		s++;
-		if(s==10){
-			vel = (i*6000)/1024;
-			s=0;
-			i=0;
-		}
-
-		if(state==TAU){
-			v++;
-			if(v==3000){
-				TIM11->CCR1 = 700;
-			}
-		}
-
-
-
-		if(state==DB && vel > 50){
-			DB_Vel = v;
-			state = K;
-			v=0;
-			TIM11->CCR1 = 400;
-		}
-		if(state==TAU){
-			if(vel>=v63 && v>3000){
-				tau = (v-3000);
-				state = IDLE;
-			}
-		}
-
-	}
-	if(htim->Instance == TIM7){
-		if(state==DB){
-			v+=10;
-			TIM11->CCR1 = v;
-		}
-		if(state==K){
-			v++;
-			if(v==30){
-				w1 = vel;
-				TIM11->CCR1 = 700;
-			}
-			if(v==100){
-				w2 = vel;
-				k = (w2-w1)/((0.7-0.4)*12);
-				v63 = 0.63*(w2-w1) + w1;
-				state=TAU;
-				TIM11->CCR1 = 400;
-				v=0;
-			}
-		}
-
-
+		v = i;
+		i_current += i;
+		i = 0;
 	}
 }
 /* USER CODE END 4 */
@@ -445,7 +402,9 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+
   }
+
   /* USER CODE END Error_Handler_Debug */
 }
 
