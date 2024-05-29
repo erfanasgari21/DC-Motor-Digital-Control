@@ -65,7 +65,7 @@ static void MX_TIM7_Init(void);
 /* USER CODE BEGIN 0 */
 
 float getVelocity(void){
-	return abs(v) * 200.0*60.0 /1024.0;
+	return (abs(v) * 200.0 * 60.0 /1024.0);
 }
 
 float getAngle(void){
@@ -74,6 +74,23 @@ float getAngle(void){
 
 uint8_t getDir(void){
 	return i>0 ? 1:0;
+}
+
+void setDir(uint8_t dir){
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, dir);
+}
+
+void setDuty(uint16_t duty){
+	TIM11->CCR1 = duty;
+}
+
+void turnLED(uint8_t led,uint8_t status){
+	if (led==0){
+		HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, status);
+	}
+	else if (led==1){
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, status);
+	}
 }
 /* USER CODE END 0 */
 
@@ -126,7 +143,10 @@ int main(void)
 	  angle = getAngle();
 	  velocity = getVelocity();
 	  direction = getDir();
-	  HAL_Delay(100);
+	  HAL_Delay(800);
+	  turnLED(0,1);
+	  HAL_Delay(800);
+	  turnLED(0,0);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -322,7 +342,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6|GPIO_PIN_8, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOG, GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, LED0_Pin|LED1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : A_Pin */
   GPIO_InitStruct.Pin = A_Pin;
@@ -349,8 +369,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PG4 PG5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+  /*Configure GPIO pins : LED0_Pin LED1_Pin */
+  GPIO_InitStruct.Pin = LED0_Pin|LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -374,9 +394,9 @@ static void MX_GPIO_Init(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if(GPIO_Pin == A_Pin) {
 		if(HAL_GPIO_ReadPin(B_GPIO_Port, B_Pin))
-			i--;
-		else
 			i++;
+		else
+			i--;
 	} else if (GPIO_Pin == Z_Pin){
 		i_current = 0;
 	}
