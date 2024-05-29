@@ -45,10 +45,13 @@ TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim11;
 
 /* USER CODE BEGIN PV */
-int i=0, v=0;
+int i=0, v=0, counter = 0;
 int i_current = 0;
-float angle =0 , velocity = 0;
+float angle =0 , velocity = 0, V = 800;
 uint8_t direction =0;
+float K_P = 0.01f, K_I = 0.2f;
+int Ts = 10;
+float e=0, e_pre=0, u=0, u_pre=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,7 +68,8 @@ static void MX_TIM7_Init(void);
 /* USER CODE BEGIN 0 */
 
 float getVelocity(void){
-	return (abs(v) * 200.0 * 60.0 /1024.0);
+	int abs_v = v>0? v:-v;
+	return (abs_v * 200.0 * 60.0 /1024.0);
 }
 
 float getAngle(void){
@@ -84,6 +88,10 @@ void setDuty(uint16_t duty){
 	TIM11->CCR1 = duty;
 }
 
+void setTs(uint8_t Ts){
+	TIM6->ARR = Ts*100-1;
+}
+
 void turnLED(uint8_t led,uint8_t status){
 	if (led==0){
 		HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, status);
@@ -92,6 +100,16 @@ void turnLED(uint8_t led,uint8_t status){
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, status);
 	}
 }
+
+void Vout2PWM(float u){
+	float abs_u = u>0? u:-u;
+	if(u>=-12 && u<=12)
+		setDuty(abs_u/12*1000);
+	else
+		setDuty(1000);
+	setDir(u>0 ? 1:0);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -133,7 +151,7 @@ int main(void)
   TIM11->CCR1 = 0;
   HAL_TIM_PWM_Start(&htim11, TIM_CHANNEL_1);
 
-
+  setTs(Ts);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -218,7 +236,7 @@ static void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 41;
+  htim6.Init.Prescaler = 839;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim6.Init.Period = 9999;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -256,9 +274,9 @@ static void MX_TIM7_Init(void)
 
   /* USER CODE END TIM7_Init 1 */
   htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 15999;
+  htim7.Init.Prescaler = 41;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 199;
+  htim7.Init.Period = 9999;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -403,10 +421,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(htim->Instance == TIM6){
+	if(htim->Instance == TIM7){
 		v = i;
 		i_current += i;
 		i = 0;
+	}
+	if(htim->Instance == TIM6){
+		counter++;
+		if(counter==1000){
+			V = V==800 ? 1400 : 800;
+			counter = 0;
+		}
+
+		// controller
+		e = V - getVelocity();
+		u = u_pre + e*(K_P+K_I*(Ts/1000.0f)) - e_pre*K_P;
+		u_pre = u;
+		e_pre = e;
+		Vout2PWM(u);
 	}
 }
 /* USER CODE END 4 */
