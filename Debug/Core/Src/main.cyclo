@@ -13,5 +13,5 @@ main.c:264:13:MX_TIM7_Init	3
 main.c:302:13:MX_TIM11_Init	4
 main.c:348:13:MX_GPIO_Init	1
 main.c:412:6:HAL_GPIO_EXTI_Callback	4
-main.c:423:6:HAL_TIM_PeriodElapsedCallback	5
-main.c:450:6:Error_Handler	1
+main.c:423:6:HAL_TIM_PeriodElapsedCallback	8
+main.c:479:6:Error_Handler	1

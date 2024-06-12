@@ -47,9 +47,9 @@ TIM_HandleTypeDef htim11;
 /* USER CODE BEGIN PV */
 int i=0, v=0, counter = 0;
 int i_current = 0;
-float angle =0 , velocity = 0, V = 800;
+float angle =0 , velocity = 0, V = 800, A = 0;
 uint8_t direction =0;
-float K_P = 0.01f, K_I = 0.2f;
+float K_P = 0.01f, K_I = 0.2f, K_a = 0.05f;
 int Ts = 10;
 float e=0, e_pre=0, u=0, u_pre=0;
 /* USER CODE END PV */
@@ -107,7 +107,7 @@ void Vout2PWM(float u){
 		setDuty(abs_u/12*1000);
 	else
 		setDuty(1000);
-	setDir(u>0 ? 1:0);
+	setDir(u<0 ? 1:0);
 }
 
 /* USER CODE END 0 */
@@ -421,25 +421,54 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	float Vdb = 3.2f, sp=0;
 	if(htim->Instance == TIM7){
 		v = i;
 		i_current += i;
 		i = 0;
 	}
-	if(htim->Instance == TIM6){
-		counter++;
-		if(counter==1000){
-			V = V==800 ? 1400 : 800;
-			counter = 0;
+	// angle controller
+		if(htim->Instance == TIM6){
+			counter++;
+			if(counter==1000){
+				A = A + 30;
+				counter = 0;
+			}
+
+		// P controller
+		//	e = A - getAngle();
+		//	u = e*K_a;
+		//	Vout2PWM(u);
+
+		// Deadbeat controller
+			e = A - getAngle();
+			u = 0.656*e - 0.606*e_pre - 0.493*u;
+			e_pre = e;
+			if(u < Vdb && u > 0){
+				u = Vdb;
+			} else if(u > -Vdb && u<0){
+				u = -Vdb;
+			}
+
+			Vout2PWM(u);
 		}
 
-		// controller
-		e = V - getVelocity();
-		u = u_pre + e*(K_P+K_I*(Ts/1000.0f)) - e_pre*K_P;
-		u_pre = u;
-		e_pre = e;
-		Vout2PWM(u);
-	}
+
+	// 	velocity controller
+	//	if(htim->Instance == TIM6){
+	//		counter++;
+	//		if(counter==1000){
+	//			V = V==800 ? 1400 : 800;
+	//			counter = 0;
+	//		}
+	//
+	//		e = V - getVelocity();
+	//		u = u_pre + e*(K_P+K_I*(Ts/1000.0f)) - e_pre*K_P;
+	//		u_pre = u;
+	//		e_pre = e;
+	//		Vout2PWM(u);
+	//	}
+
 }
 /* USER CODE END 4 */
 
